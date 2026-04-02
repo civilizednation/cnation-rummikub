@@ -11,160 +11,185 @@
     <style>
         body { background-color: #1e293b; color: white; user-select: none; }
         
-        /* 루미큐브 타일 기본 스타일 */
+        /* 💡 타일 크기를 2/3 수준으로 축소 */
         .rk-tile {
-            width: 44px;
-            height: 60px;
+            width: 30px;
+            height: 42px;
             background-color: #f8fafc;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), inset 0 -3px 0 rgba(0,0,0,0.1);
+            border-radius: 6px;
+            box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
+            font-size: 18px;
             font-weight: 900;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: transform 0.15s, border 0.15s;
             border: 2px solid transparent;
         }
         
         /* 선택된 타일 효과 */
         .rk-tile.selected {
-            transform: translateY(-8px);
-            border: 3px solid #facc15; /* 노란색 테두리 */
-            box-shadow: 0 10px 15px -3px rgba(250, 204, 21, 0.4);
+            transform: translateY(-5px);
+            border: 2px solid #facc15;
+            box-shadow: 0 8px 12px -3px rgba(250, 204, 21, 0.4);
         }
         
-        /* 색상 정의 */
         .color-black { color: #111827; }
         .color-red { color: #ef4444; }
         .color-blue { color: #3b82f6; }
         .color-orange { color: #f59e0b; }
         .color-joker { color: #ec4899; }
 
-        .board-area { min-height: 35vh; background-color: #0f172a; border-radius: 12px; }
-        .rack-area { min-height: 120px; background-color: #334155; border-radius: 12px; border: 4px solid #475569; }
+        .board-area { min-height: 40vh; background-color: #0f172a; border-radius: 12px; }
+        .rack-area { min-height: 100px; background-color: #334155; border-radius: 12px; border: 3px solid #475569; }
         
-        /* 보드 위의 조합 그룹 */
+        /* 보드 그룹 간격 축소 */
         .board-group {
             display: flex;
-            gap: 4px;
-            padding: 8px;
+            gap: 2px;
+            padding: 4px 6px;
             background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
+            border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
-<body class="h-screen flex flex-col p-4">
+<body class="h-screen flex flex-col p-3">
 
-    <div class="flex justify-between items-center mb-3 bg-slate-800 p-4 rounded-xl shadow-lg">
+    <div class="flex justify-between items-center mb-2 bg-slate-800 p-3 rounded-xl shadow-lg">
         <div>
-            <h1 class="text-xl font-black text-indigo-400">cnation-rummikub</h1>
-            <p class="text-xs text-slate-400 mt-1" id="deckCount">남은 덱: 106</p>
+            <h1 class="text-lg font-black text-indigo-400">cnation-rummikub</h1>
+            <p class="text-[10px] text-slate-400 mt-0.5" id="deckCount">남은 덱: 106</p>
         </div>
-        <div class="flex items-center gap-4">
-            <div id="timerDisplay" class="font-mono text-xl font-bold text-rose-400">
-                ⏱ 30
-            </div>
-            <div class="bg-slate-700 px-3 py-1.5 rounded-lg text-center">
-                <p class="text-[10px] text-slate-400 font-bold">컴퓨터</p>
-                <p class="text-lg font-black text-white" id="comTileCount">14</p>
+        <div class="flex items-center gap-3">
+            <div id="timerDisplay" class="font-mono text-lg font-bold text-rose-400">⏱ 30</div>
+            <div class="bg-slate-700 px-3 py-1 rounded-lg text-center">
+                <p class="text-[9px] text-slate-400 font-bold">컴퓨터</p>
+                <p class="text-base font-black text-white" id="comTileCount">14</p>
             </div>
         </div>
     </div>
 
-    <div class="flex-1 board-area p-4 mb-3 flex flex-wrap content-start gap-3 overflow-y-auto" id="board">
-        </div>
+    <div class="flex justify-between items-center mb-2 px-1">
+        <span id="initialMeldStatus" class="text-xs font-bold text-amber-400 animate-pulse">
+            ⚠️ 최초 등록 (합계 30 이상 필요)
+        </span>
+    </div>
+
+    <div class="flex-1 board-area p-3 mb-2 flex flex-wrap content-start gap-2 overflow-y-auto" id="board"></div>
 
     <div class="mb-2 flex flex-wrap justify-between items-center gap-2">
         <div class="flex gap-2">
-            <button onclick="sortRackByNum()" class="bg-slate-600 hover:bg-slate-500 px-3 py-1.5 rounded text-xs font-bold transition">
-                <i class="fas fa-sort-numeric-down mr-1"></i>숫자순
+            <button onclick="sortRackByNum()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded text-[11px] font-bold transition">
+                <i class="fas fa-sort-numeric-down mr-1"></i>숫자
             </button>
-            <button onclick="sortRackByColor()" class="bg-slate-600 hover:bg-slate-500 px-3 py-1.5 rounded text-xs font-bold transition">
-                <i class="fas fa-palette mr-1"></i>모양순
+            <button onclick="sortRackByColor()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded text-[11px] font-bold transition">
+                <i class="fas fa-palette mr-1"></i>모양
             </button>
         </div>
         <div class="flex gap-2">
-            <button onclick="submitCombination()" id="playBtn" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-4 py-2 rounded-lg font-black shadow-lg transition">
-                조합 내기!
+            <button onclick="submitCombination()" id="playBtn" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-4 py-2 rounded-lg text-sm font-black shadow-lg transition">
+                내기!
             </button>
-            <button onclick="drawTile()" id="drawBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md transition">
-                타일 먹기 (패스)
+            <button onclick="drawTile()" id="drawBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition">
+                먹기(패스)
             </button>
         </div>
     </div>
 
-    <div class="rack-area p-4 flex flex-wrap gap-2 items-center" id="playerRack">
-        </div>
+    <div class="rack-area p-3 flex flex-wrap gap-1.5 items-center justify-center" id="playerRack"></div>
 
     <script>
         const COLORS = ['black', 'red', 'blue', 'orange'];
         let deck = [];
-        let playerRack = [];
-        let comRack = [];
-        let boardGroups = []; // [ [tile1, tile2, tile3], [tile4, tile5] ] 형태의 2차원 배열
+        let playerRack = [], comRack = [];
+        let boardGroups = []; 
 
-        // 선택 상태 관리
-        let selectedRackIds = new Set();
-        let selectedBoardIds = new Set();
-        
+        let selectedRackIds = new Set(), selectedBoardIds = new Set();
         let isPlayerTurn = true;
-        let timerInterval;
-        let timeLeft = 30;
+        let timerInterval, timeLeft = 30;
+        
+        // 💡 최초 등록 30점 룰 체크용 변수
+        let isPlayerInitialMeldDone = false;
+        let isComInitialMeldDone = false;
 
-        // 1. 덱 생성
+        // 🎵 웹 오디오 설정 (효과음)
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            let now = audioCtx.currentTime;
+            
+            if (type === 'select') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'submit') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
         function initDeck() {
             deck = [];
-            for (let set = 0; set < 2; set++) {
+            for (let set=0; set<2; set++) {
                 COLORS.forEach(color => {
-                    for (let num = 1; num <= 13; num++) {
-                        deck.push({ id: `t_${set}_${color}_${num}`, color: color, number: num, isJoker: false });
-                    }
+                    for (let num=1; num<=13; num++) deck.push({ id: `t_${set}_${color}_${num}`, color, number: num, isJoker: false });
                 });
             }
             deck.push({ id: `joker_1`, color: 'joker', number: '☻', isJoker: true });
             deck.push({ id: `joker_2`, color: 'joker', number: '☻', isJoker: true });
-            
             for (let i = deck.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
             }
         }
 
-        // 초기 분배
         function dealInitialTiles() {
-            for(let i=0; i<14; i++) {
-                playerRack.push(deck.pop());
-                comRack.push(deck.pop());
-            }
+            for(let i=0; i<14; i++) { playerRack.push(deck.pop()); comRack.push(deck.pop()); }
             sortRackByNum();
         }
 
-        // 2. 정렬 기능
         window.sortRackByNum = () => {
-            playerRack.sort((a, b) => a.number === b.number ? a.color.localeCompare(b.color) : a.number - b.number);
+            initAudio();
+            playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number);
             renderAll();
         }
-
         window.sortRackByColor = () => {
-            playerRack.sort((a, b) => a.color === b.color ? a.number - b.number : a.color.localeCompare(b.color));
+            initAudio();
+            playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color));
             renderAll();
         }
 
-        // 3. 타이머 로직
         function startTimer() {
-            clearInterval(timerInterval);
-            timeLeft = 30;
-            updateTimerUI();
-            
+            clearInterval(timerInterval); timeLeft = 30; updateTimerUI();
             timerInterval = setInterval(() => {
-                timeLeft--;
-                updateTimerUI();
+                timeLeft--; updateTimerUI();
                 if(timeLeft <= 0) {
                     clearInterval(timerInterval);
+                    playSound('error');
                     alert("시간 초과! 타일을 하나 먹습니다.");
                     drawTile();
                 }
@@ -172,31 +197,34 @@
         }
 
         function updateTimerUI() {
-            const timerEl = document.getElementById('timerDisplay');
-            timerEl.innerText = `⏱ ${timeLeft}`;
-            timerEl.className = `font-mono text-xl font-bold ${timeLeft <= 10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
+            const el = document.getElementById('timerDisplay');
+            el.innerText = `⏱ ${timeLeft}`;
+            el.className = `font-mono text-lg font-bold ${timeLeft<=10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
         }
 
-        // 4. UI 렌더링
         function renderAll() {
             document.getElementById('deckCount').innerText = `남은 덱: ${deck.length}`;
             document.getElementById('comTileCount').innerText = comRack.length;
             
-            // 내 받침대 렌더링
-            const rackEl = document.getElementById('playerRack');
-            rackEl.innerHTML = '';
+            const statusEl = document.getElementById('initialMeldStatus');
+            if (isPlayerInitialMeldDone) {
+                statusEl.innerText = "✅ 자유롭게 조합 가능";
+                statusEl.className = "text-xs font-bold text-emerald-400";
+            } else {
+                statusEl.innerText = "⚠️ 최초 등록 (합계 30 이상 필요)";
+                statusEl.className = "text-xs font-bold text-amber-400 animate-pulse";
+            }
+            
+            const rackEl = document.getElementById('playerRack'); rackEl.innerHTML = '';
             playerRack.forEach(tile => {
                 const el = createTileEl(tile, selectedRackIds.has(tile.id));
                 el.onclick = () => toggleRackTile(tile.id);
                 rackEl.appendChild(el);
             });
 
-            // 보드 렌더링
-            const boardEl = document.getElementById('board');
-            boardEl.innerHTML = '';
-            boardGroups.forEach((group, index) => {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'board-group';
+            const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
+            boardGroups.forEach((group) => {
+                const groupDiv = document.createElement('div'); groupDiv.className = 'board-group';
                 group.forEach(tile => {
                     const el = createTileEl(tile, selectedBoardIds.has(tile.id));
                     el.onclick = () => toggleBoardTile(tile.id);
@@ -213,72 +241,84 @@
             return el;
         }
 
-        // 선택 토글 함수
         function toggleRackTile(id) {
-            if(!isPlayerTurn) return;
+            initAudio(); if(!isPlayerTurn) return;
             selectedRackIds.has(id) ? selectedRackIds.delete(id) : selectedRackIds.add(id);
-            renderAll();
+            playSound('select'); renderAll();
         }
         function toggleBoardTile(id) {
-            if(!isPlayerTurn) return;
+            initAudio(); if(!isPlayerTurn) return;
             selectedBoardIds.has(id) ? selectedBoardIds.delete(id) : selectedBoardIds.add(id);
-            renderAll();
+            playSound('select'); renderAll();
         }
 
-        // 5. 루미큐브 룰 검증 로직 (핵심 엔진)
-        function isValidGroup(tiles) {
+        // 💡 룰 검증 및 "자동 정렬" 함수 (가장 중요한 핵심 로직)
+        function validateAndSortGroup(tiles) {
             if (tiles.length < 3) return false;
-            
-            let jokers = tiles.filter(t => t.isJoker).length;
-            let regulars = tiles.filter(t => !t.isJoker);
-            if (regulars.length === 0) return true;
+            let jokers = tiles.filter(t => t.isJoker);
+            let regs = tiles.filter(t => !t.isJoker);
+            if (regs.length === 0) return true;
 
-            // 체크 1: 같은 숫자, 다른 색상 (최대 4개)
-            let isSameNum = true;
-            let firstNum = regulars[0].number;
-            let colors = new Set();
-            for (let t of regulars) {
-                if (t.number !== firstNum || colors.has(t.color)) { isSameNum = false; break; }
-                colors.add(t.color);
-            }
-            if (isSameNum && tiles.length <= 4) return true;
-
-            // 체크 2: 같은 색상, 연속된 숫자
-            let isConsecutive = true;
-            let firstColor = regulars[0].color;
-            let sortedRegs = [...regulars].sort((a,b) => a.number - b.number);
-            let neededJokers = 0;
-
-            for (let i = 0; i < sortedRegs.length; i++) {
-                if (sortedRegs[i].color !== firstColor) { isConsecutive = false; break; }
-                if (i > 0) {
-                    let diff = sortedRegs[i].number - sortedRegs[i-1].number;
-                    if (diff === 0) { isConsecutive = false; break; } // 중복 숫자 불가
-                    neededJokers += (diff - 1); // 빈 공간만큼 조커 필요
+            // 체크 1: 같은 숫자
+            let isSameNum = new Set(regs.map(t => t.number)).size === 1;
+            if (isSameNum) {
+                let colors = new Set(regs.map(t => t.color));
+                if (colors.size === regs.length && tiles.length <= 4) {
+                    let num = regs[0].number;
+                    tiles.forEach(t => t.currentValue = num); // 조커도 이 숫자로 취급
+                    // 모양순 정렬
+                    tiles.sort((a,b) => {
+                        if(a.isJoker) return 1; if(b.isJoker) return -1;
+                        return a.color.localeCompare(b.color);
+                    });
+                    return tiles; // 정렬된 배열 반환
                 }
             }
-            if (isConsecutive && neededJokers <= jokers) return true;
 
+            // 체크 2: 연속 숫자
+            let isConsecutive = true;
+            let color = regs[0].color;
+            if (regs.every(t => t.color === color)) {
+                let sortedRegs = [...regs].sort((a,b) => a.number - b.number);
+                let neededJokers = 0;
+                for(let i=0; i<sortedRegs.length-1; i++) {
+                    let diff = sortedRegs[i+1].number - sortedRegs[i].number - 1;
+                    if (diff < 0) { isConsecutive = false; break; } // 중복 숫자 불가
+                    neededJokers += diff;
+                }
+                
+                if (isConsecutive && neededJokers <= jokers.length) {
+                    // 연속 숫자 오름차순 자동 정렬 및 빈칸에 조커 끼워넣기
+                    let result = [];
+                    let jIdx = 0;
+                    let currentNum = sortedRegs[0].number;
+                    
+                    for (let i = 0; i < sortedRegs.length; i++) {
+                        while (currentNum < sortedRegs[i].number) {
+                            let j = jokers[jIdx++]; j.currentValue = currentNum;
+                            result.push(j); currentNum++;
+                        }
+                        sortedRegs[i].currentValue = sortedRegs[i].number;
+                        result.push(sortedRegs[i]); currentNum++;
+                    }
+                    while (jIdx < jokers.length) {
+                        let j = jokers[jIdx++]; j.currentValue = currentNum;
+                        result.push(j); currentNum++;
+                    }
+                    return result; // 완벽하게 정렬된 배열 반환
+                }
+            }
             return false;
         }
 
-        // 6. 조합 제출하기 버튼 로직
         window.submitCombination = () => {
-            if(!isPlayerTurn) return;
+            initAudio(); if(!isPlayerTurn) return;
 
             let proposedTiles = [];
             let rackTilesToRemove = [];
             let boardTilesToRemoveByGroup = {};
 
-            // 랙에서 선택된 타일 수집
-            playerRack.forEach(t => {
-                if(selectedRackIds.has(t.id)) {
-                    proposedTiles.push(t);
-                    rackTilesToRemove.push(t.id);
-                }
-            });
-
-            // 보드에서 선택된 타일 수집
+            playerRack.forEach(t => { if(selectedRackIds.has(t.id)) { proposedTiles.push(t); rackTilesToRemove.push(t.id); } });
             boardGroups.forEach((group, gIndex) => {
                 group.forEach(t => {
                     if(selectedBoardIds.has(t.id)) {
@@ -289,120 +329,111 @@
                 });
             });
 
-            if(proposedTiles.length < 3) {
-                alert("최소 3개 이상의 타일을 선택하여 조합해야 합니다.");
-                return;
+            // 💡 자동 정렬 및 검증 실행
+            let sortedGroup = validateAndSortGroup(proposedTiles);
+
+            if(!sortedGroup) {
+                playSound('error'); alert("규칙에 맞지 않는 조합입니다."); return;
             }
 
-            if(!isValidGroup(proposedTiles)) {
-                alert("규칙에 맞지 않는 조합입니다. (같은색 연속숫자 or 다른색 같은숫자)");
-                return;
+            // 💡 최초 등록 (30점) 룰 체크
+            if (!isPlayerInitialMeldDone) {
+                if (Object.keys(boardTilesToRemoveByGroup).length > 0) {
+                    playSound('error'); alert("첫 등록 시에는 바닥에 있는 카드를 사용할 수 없습니다!"); return;
+                }
+                let sum = sortedGroup.reduce((acc, t) => acc + t.currentValue, 0);
+                if (sum < 30) {
+                    playSound('error'); alert(`첫 등록은 합계가 30 이상이어야 합니다. (현재 합계: ${sum}점)`); return;
+                }
+                isPlayerInitialMeldDone = true;
             }
 
-            // 바닥 타일을 빼왔다면, 남은 바닥 타일들도 3개 이상 정상 유지되는지 검사
             for (let gIndex in boardTilesToRemoveByGroup) {
                 let remaining = boardGroups[gIndex].filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
-                if(remaining.length > 0 && !isValidGroup(remaining)) {
-                    alert("바닥에서 타일을 가져올 경우, 남은 타일들도 정상적인 조합(3개 이상)이어야 합니다.");
-                    return;
+                if(remaining.length > 0 && !validateAndSortGroup(remaining)) {
+                    playSound('error'); alert("바닥에서 남은 타일들도 정상적인 조합(3개 이상)이어야 합니다."); return;
                 }
             }
 
-            // 모든 검증 통과 -> 데이터 적용!
+            // 성공 처리
+            playSound('submit');
             playerRack = playerRack.filter(t => !rackTilesToRemove.includes(t.id));
 
             let newBoardGroups = [];
             boardGroups.forEach((group, gIndex) => {
                 if(boardTilesToRemoveByGroup[gIndex]) {
                     let remaining = group.filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
-                    if(remaining.length > 0) newBoardGroups.push(remaining); // 남은게 있으면 저장
+                    if(remaining.length > 0) newBoardGroups.push(validateAndSortGroup(remaining));
                 } else {
                     newBoardGroups.push(group);
                 }
             });
             
-            newBoardGroups.push(proposedTiles); // 새로 낸 조합 추가
+            newBoardGroups.push(sortedGroup); // 정렬된 그룹으로 바닥에 투척!
             boardGroups = newBoardGroups;
 
-            selectedRackIds.clear();
-            selectedBoardIds.clear();
-            
-            // 턴 안 넘기고 계속 낼 수 있게 렌더링만 갱신 (턴 종료는 명시적으로)
+            selectedRackIds.clear(); selectedBoardIds.clear();
             renderAll();
         }
 
-        // 타일 먹고 턴 넘기기
         window.drawTile = () => {
-            if (!isPlayerTurn || deck.length === 0) return;
+            initAudio(); if (!isPlayerTurn || deck.length === 0) return;
             playerRack.push(deck.pop());
             endTurn();
         }
 
         function endTurn() {
-            isPlayerTurn = false;
-            clearInterval(timerInterval);
+            isPlayerTurn = false; clearInterval(timerInterval);
             document.getElementById('timerDisplay').innerText = "대기중";
-            selectedRackIds.clear();
-            selectedBoardIds.clear();
-            renderAll();
-            setTimeout(computerTurn, 1500); // 1.5초 후 컴퓨터 턴
+            selectedRackIds.clear(); selectedBoardIds.clear(); renderAll();
+            setTimeout(computerTurn, 1000); 
         }
 
-        // 7. 업그레이드된 컴퓨터 AI (자신의 덱에서만 조합을 찾음)
-        function computerTurn() {
-            let played = false;
-
-            // 전략 1: 같은 숫자, 다른 색상 조합 찾기
-            for (let n = 1; n <= 13; n++) {
-                let sameNums = comRack.filter(t => t.number === n && !t.isJoker);
-                let uniqueColors = new Set();
-                let groupTiles = [];
-                for (let t of sameNums) {
-                    if (!uniqueColors.has(t.color)) {
-                        uniqueColors.add(t.color);
-                        groupTiles.push(t);
-                    }
-                }
-                if (groupTiles.length >= 3) {
-                    boardGroups.push(groupTiles);
-                    comRack = comRack.filter(t => !groupTiles.includes(t));
-                    played = true; break;
-                }
+        function getPossibleComGroups() {
+            let foundGroups = []; let rack = [...comRack];
+            for(let n=1; n<=13; n++) {
+                let sames = rack.filter(t=>t.number===n && !t.isJoker);
+                let colors = new Set(), group = [];
+                for(let t of sames) { if(!colors.has(t.color)) { colors.add(t.color); group.push(t); } }
+                if(group.length >= 3) { let sorted = validateAndSortGroup(group); if(sorted) { foundGroups.push(sorted); rack = rack.filter(t => !group.includes(t)); } }
             }
-
-            // 전략 2: 같은 색상, 연속된 숫자 찾기
-            if (!played) {
-                for (let c of COLORS) {
-                    if (played) break;
-                    let colorTiles = comRack.filter(t => t.color === c && !t.isJoker).sort((a,b)=>a.number - b.number);
-                    if (colorTiles.length >= 3) {
-                        for (let i = 0; i <= colorTiles.length - 3; i++) {
-                            if (colorTiles[i].number + 1 === colorTiles[i+1].number &&
-                                colorTiles[i+1].number + 1 === colorTiles[i+2].number) {
-                                let runTiles = [colorTiles[i], colorTiles[i+1], colorTiles[i+2]];
-                                boardGroups.push(runTiles);
-                                comRack = comRack.filter(t => !runTiles.includes(t));
-                                played = true; break;
-                            }
+            for(let c of COLORS) {
+                let colorTiles = rack.filter(t=>t.color===c && !t.isJoker).sort((a,b)=>a.number-b.number);
+                if(colorTiles.length >= 3) {
+                    let run = [colorTiles[0]];
+                    for(let i=1; i<colorTiles.length; i++) {
+                        if(colorTiles[i].number === colorTiles[i-1].number + 1) run.push(colorTiles[i]);
+                        else if(colorTiles[i].number !== colorTiles[i-1].number) {
+                            if(run.length >= 3) { let sorted = validateAndSortGroup(run); if(sorted) { foundGroups.push(sorted); rack = rack.filter(t=>!run.includes(t)); } }
+                            run = [colorTiles[i]];
                         }
                     }
+                    if(run.length >= 3) { let sorted = validateAndSortGroup(run); if(sorted) { foundGroups.push(sorted); rack = rack.filter(t=>!run.includes(t)); } }
                 }
             }
-
-            // 조합 못 찾으면 타일 1개 먹기
-            if (!played && deck.length > 0) comRack.push(deck.pop());
-
-            // 턴 다시 플레이어로
-            isPlayerTurn = true;
-            renderAll();
-            startTimer();
+            return foundGroups;
         }
 
-        // 게임 시작!
-        initDeck();
-        dealInitialTiles();
-        renderAll();
-        startTimer();
+        function computerTurn() {
+            let possibleGroups = getPossibleComGroups();
+            if (!isComInitialMeldDone) {
+                let totalSum = possibleGroups.reduce((acc, g) => acc + g.reduce((a,t)=>a+t.currentValue, 0), 0);
+                if (totalSum >= 30 && possibleGroups.length > 0) {
+                    possibleGroups.forEach(g => { boardGroups.push(g); comRack = comRack.filter(t => !g.find(gt => gt.id === t.id)); });
+                    isComInitialMeldDone = true;
+                } else if (deck.length > 0) comRack.push(deck.pop());
+            } else {
+                if (possibleGroups.length > 0) {
+                    possibleGroups.forEach(g => { boardGroups.push(g); comRack = comRack.filter(t => !g.find(gt => gt.id === t.id)); });
+                } else if (deck.length > 0) comRack.push(deck.pop());
+            }
+            isPlayerTurn = true; renderAll(); startTimer();
+        }
+
+        initDeck(); dealInitialTiles(); renderAll();
+        
+        // 브라우저 정책상 첫 클릭 전에는 오디오/타이머 제한될 수 있어 알림 팝업 추가
+        setTimeout(() => { alert("게임이 시작되었습니다! 내 카드를 선택하고 진행해주세요."); startTimer(); }, 500);
 
     </script>
 </body>
