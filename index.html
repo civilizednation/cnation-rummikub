@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>cnation-rummikub</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { background-color: #1e293b; color: white; user-select: none; }
+        
+        /* 루미큐브 타일 스타일 */
+        .rk-tile {
+            width: 46px;
+            height: 64px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), inset 0 -3px 0 rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 900;
+            cursor: grab;
+            transition: transform 0.1s;
+        }
+        .rk-tile:active { cursor: grabbing; transform: scale(0.95); }
+        .rk-tile.dragging { opacity: 0.5; transform: scale(1.05); }
+        
+        /* 타일 색상 */
+        .color-black { color: #111827; }
+        .color-red { color: #ef4444; }
+        .color-blue { color: #3b82f6; }
+        .color-orange { color: #f59e0b; }
+        .color-joker { color: #ec4899; } /* 조커는 핑크색 별도로 지정 */
+
+        /* 보드 및 받침대 영역 */
+        .board-area { min-height: 40vh; background-color: #0f172a; border-radius: 12px; border: 2px dashed #334155; }
+        .rack-area { min-height: 100px; background-color: #334155; border-radius: 12px; border: 4px solid #475569; }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-4">
+
+    <div class="flex justify-between items-center mb-4 bg-slate-800 p-4 rounded-xl shadow-lg">
+        <div>
+            <h1 class="text-xl font-black text-indigo-400 tracking-wider uppercase">cnation-rummikub</h1>
+            <p class="text-xs text-slate-400 mt-1" id="deckCount">남은 타일: 106개</p>
+        </div>
+        <div class="text-right flex items-center gap-4">
+            <div class="bg-slate-700 px-4 py-2 rounded-lg text-center">
+                <p class="text-[10px] text-slate-400 font-bold mb-1">컴퓨터 타일</p>
+                <p class="text-xl font-black text-white" id="comTileCount">14</p>
+            </div>
+            <div id="turnIndicator" class="px-4 py-2 rounded-lg font-bold bg-indigo-600 text-white animate-pulse">
+                내 턴
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 board-area p-4 mb-4 flex flex-wrap content-start gap-2 overflow-y-auto" id="board" ondragover="allowDrop(event)" ondrop="dropToBoard(event)">
+        </div>
+
+    <div class="relative">
+        <div class="flex justify-between items-end mb-2 px-2">
+            <h2 class="font-bold text-slate-300">내 받침대</h2>
+            <div class="flex gap-2">
+                <button onclick="drawTile()" id="drawBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow-md transition text-sm">
+                    <i class="fas fa-layer-group mr-1"></i> 타일 먹기
+                </button>
+                <button onclick="endTurn()" id="endTurnBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow-md transition text-sm">
+                    턴 종료
+                </button>
+            </div>
+        </div>
+        <div class="rack-area p-4 flex flex-wrap gap-2 items-center" id="playerRack">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCTwOAC_LrrKH8CKepUOTf0pyd9qRv4y_8",
+            authDomain: "cnation-project.firebaseapp.com",
+            projectId: "cnation-project",
+            storageBucket: "cnation-project.firebasestorage.app",
+            messagingSenderId: "1004154104261",
+            appId: "1:1004154104261:web:0eac4c7ded38262ae5c3ac"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+    </script>
+
+    <script>
+        const COLORS = ['black', 'red', 'blue', 'orange'];
+        let deck = [];
+        let playerRack = [];
+        let comRack = [];
+        let boardTiles = [];
+        let isPlayerTurn = true;
+        let draggedTileData = null; // 드래그 중인 타일 정보
+
+        // 1. 덱 생성 (1~13 x 4색상 x 2세트 = 104개 + 조커 2개 = 106개)
+        function initDeck() {
+            deck = [];
+            for (let set = 0; set < 2; set++) {
+                COLORS.forEach(color => {
+                    for (let num = 1; num <= 13; num++) {
+                        deck.push({ id: `t_${set}_${color}_${num}`, color: color, number: num, isJoker: false });
+                    }
+                });
+            }
+            // 조커 추가
+            deck.push({ id: `joker_1`, color: 'joker', number: '☻', isJoker: true });
+            deck.push({ id: `joker_2`, color: 'joker', number: '☻', isJoker: true });
+            
+            // 셔플 (Fisher-Yates)
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        // 2. 초기 세팅 (각각 14개씩 분배)
+        function dealInitialTiles() {
+            for(let i=0; i<14; i++) {
+                playerRack.push(deck.pop());
+                comRack.push(deck.pop());
+            }
+        }
+
+        // 3. UI 렌더링
+        function renderAll() {
+            document.getElementById('deckCount').innerText = `남은 타일: ${deck.length}개`;
+            document.getElementById('comTileCount').innerText = comRack.length;
+            
+            // 플레이어 받침대 렌더링
+            const rackEl = document.getElementById('playerRack');
+            rackEl.innerHTML = '';
+            playerRack.forEach(tile => {
+                rackEl.appendChild(createTileElement(tile, true));
+            });
+
+            // 보드 렌더링
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            boardTiles.forEach(tile => {
+                boardEl.appendChild(createTileElement(tile, false));
+            });
+            
+            updateTurnUI();
+        }
+
+        // 타일 HTML 요소 생성기
+        function createTileElement(tile, isDraggable) {
+            const el = document.createElement('div');
+            el.className = `rk-tile color-${tile.color}`;
+            el.innerHTML = tile.number;
+            el.id = tile.id;
+            
+            if (isDraggable && isPlayerTurn) {
+                el.draggable = true;
+                el.ondragstart = (e) => {
+                    draggedTileData = tile;
+                    e.dataTransfer.setData('text/plain', tile.id);
+                    setTimeout(() => el.classList.add('dragging'), 0);
+                };
+                el.ondragend = () => {
+                    el.classList.remove('dragging');
+                    draggedTileData = null;
+                };
+            }
+            return el;
+        }
+
+        // 4. 드래그 앤 드롭 로직 (받침대 -> 보드)
+        window.allowDrop = (e) => { e.preventDefault(); }
+        window.dropToBoard = (e) => {
+            e.preventDefault();
+            if (!draggedTileData || !isPlayerTurn) return;
+
+            // 받침대에서 제거하고 보드에 추가
+            playerRack = playerRack.filter(t => t.id !== draggedTileData.id);
+            boardTiles.push(draggedTileData);
+            
+            renderAll();
+        }
+
+        // 5. 타일 먹기 (Draw)
+        window.drawTile = () => {
+            if (!isPlayerTurn || deck.length === 0) return;
+            playerRack.push(deck.pop());
+            renderAll();
+            endTurn(); // 먹으면 턴이 끝남
+        }
+
+        // 6. 턴 종료
+        window.endTurn = () => {
+            if (!isPlayerTurn) return;
+            isPlayerTurn = false;
+            updateTurnUI();
+            
+            // 컴퓨터 턴 시작 (1초 딜레이)
+            setTimeout(computerTurn, 1000);
+        }
+
+        // 7. 컴퓨터 인공지능 (MVP 버전에선 단순히 타일 1개를 먹는 바보 AI)
+        function computerTurn() {
+            if (deck.length > 0) {
+                comRack.push(deck.pop());
+            }
+            
+            // 다시 플레이어 턴으로
+            isPlayerTurn = true;
+            renderAll();
+        }
+
+        function updateTurnUI() {
+            const indicator = document.getElementById('turnIndicator');
+            const drawBtn = document.getElementById('drawBtn');
+            const endBtn = document.getElementById('endTurnBtn');
+            
+            if (isPlayerTurn) {
+                indicator.innerText = "내 턴";
+                indicator.className = "px-4 py-2 rounded-lg font-bold bg-indigo-600 text-white animate-pulse";
+                drawBtn.disabled = false; drawBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                endBtn.disabled = false; endBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                indicator.innerText = "컴퓨터 생각중...";
+                indicator.className = "px-4 py-2 rounded-lg font-bold bg-slate-600 text-slate-300";
+                drawBtn.disabled = true; drawBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                endBtn.disabled = true; endBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // 게임 초기화 실행
+        initDeck();
+        dealInitialTiles();
+        renderAll();
+
+    </script>
+</body>
+</html>
