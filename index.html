@@ -9,23 +9,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* 스마트폰 화면 꽉 채우기 및 스크롤 방지 */
         body { 
             background-color: #1e293b; 
             color: white; 
             user-select: none; 
-            overflow: hidden; /* 전체 스크롤 금지 */
-            touch-action: none; /* 모바일 브라우저 당김 새로고침 방지 */
+            overflow: hidden; 
+            touch-action: none; 
         }
         
         :root {
-            --board-scale: 1; /* 바닥 타일 축소 비율 (JS에서 자동 조절) */
+            --board-scale: 1; 
             --tile-w: 22px;
             --tile-h: 32px;
             --tile-fs: 14px;
         }
 
-        /* 💡 2/3로 더 작아진 앙증맞은 타일 */
         .rk-tile {
             width: var(--tile-w);
             height: var(--tile-h);
@@ -50,7 +48,6 @@
             box-shadow: 0 4px 8px -2px rgba(250, 204, 21, 0.5);
         }
 
-        /* 바닥에 있는 타일은 공간이 부족하면 자동 축소됨 */
         #board .rk-tile {
             width: calc(var(--tile-w) * var(--board-scale));
             height: calc(var(--tile-h) * var(--board-scale));
@@ -64,11 +61,9 @@
         .color-orange { color: #f59e0b; }
         .color-joker { color: #ec4899; }
 
-        /* 레이아웃 영역 */
         .board-area { 
             background-color: #0f172a; 
             border-radius: 8px; 
-            /* 내부 스크롤은 최후의 보루로 남겨둠 */
             overflow-y: auto; 
             align-content: flex-start;
         }
@@ -109,10 +104,13 @@
         </div>
     </div>
 
-    <div class="flex justify-between items-center px-1 shrink-0">
-        <span id="initialMeldStatus" class="text-[10px] font-bold text-amber-400 animate-pulse">
+    <div class="flex justify-between items-center px-3 py-1.5 shrink-0 bg-slate-800 rounded-md border border-slate-700">
+        <div id="turnStatusMessage" class="text-xs font-black text-emerald-400 flex items-center gap-1">
+            <i class="fas fa-user"></i> 사용자 차례입니다
+        </div>
+        <div id="initialMeldStatus" class="text-[10px] font-bold text-amber-400 animate-pulse">
             ⚠️ 최초 등록 (합계 30 이상 필요)
-        </span>
+        </div>
     </div>
 
     <div class="flex-1 board-area p-2 flex flex-wrap gap-1.5" id="board"></div>
@@ -151,7 +149,6 @@
         let isPlayerInitialMeldDone = false;
         let isComInitialMeldDone = false;
 
-        // 사운드 시스템
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -205,7 +202,13 @@
         window.sortRackByNum = () => { initAudio(); playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number); renderAll(); }
         window.sortRackByColor = () => { initAudio(); playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color)); renderAll(); }
 
-        function startTimer() {
+        // 💡 턴 시작 로직
+        function startPlayerTurn() {
+            isPlayerTurn = true;
+            const turnMsg = document.getElementById('turnStatusMessage');
+            turnMsg.innerHTML = '<i class="fas fa-user"></i> 사용자 차례입니다';
+            turnMsg.className = 'text-xs font-black text-emerald-400 flex items-center gap-1';
+            
             clearInterval(timerInterval); timeLeft = 30; updateTimerUI();
             timerInterval = setInterval(() => {
                 timeLeft--; updateTimerUI();
@@ -214,6 +217,7 @@
                     alert("시간 초과! 타일을 하나 먹습니다."); drawTile();
                 }
             }, 1000);
+            renderAll();
         }
 
         function updateTimerUI() {
@@ -222,16 +226,12 @@
             el.className = `font-mono text-base font-bold ${timeLeft<=10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
         }
 
-        // 💡 핵심 기능: 공간 부족 시 바닥 타일 자동 축소 (Auto-Scaling)
         function adjustBoardScale() {
             const board = document.getElementById('board');
             let scale = 1.0;
             board.style.setProperty('--board-scale', scale);
-            
-            // 렌더링 후 약간의 시간차를 두고 크기 계산
             setTimeout(() => {
-                let safety = 15; // 무한루프 방지
-                // 내용물이 컨테이너 높이보다 크면 크기를 5%씩 줄임 (최대 절반까지)
+                let safety = 15;
                 while (board.scrollHeight > board.clientHeight && scale > 0.5 && safety > 0) {
                     scale -= 0.05;
                     board.style.setProperty('--board-scale', scale);
@@ -271,7 +271,6 @@
                 boardEl.appendChild(groupDiv);
             });
 
-            // 화면을 다 그렸으면 축소 검사 실행
             adjustBoardScale();
         }
 
@@ -418,10 +417,11 @@
             for (let gIndex in boardTilesToRemoveByGroup) {
                 let remaining = boardGroups[gIndex].filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
                 if(remaining.length > 0 && !validateAndSortGroup(remaining)) {
-                    playSound('error'); alert("바닥에 남겨진 타일들이 정상적인 3개 이상 그룹이 아닙니다."); return;
+                    playSound('error'); alert("바닥에 남겨진 타일들이 정상적인 조합이 아닙니다."); return;
                 }
             }
 
+            // 💡 등록 성공 시: 타일을 바닥에 깐다
             playSound('submit');
             playerRack = playerRack.filter(t => !rackTilesToRemove.includes(t.id));
 
@@ -438,8 +438,8 @@
             partitions.forEach(g => newBoardGroups.push(g));
             boardGroups = newBoardGroups;
 
-            selectedRackIds.clear(); selectedBoardIds.clear();
-            renderAll();
+            // 💡 턴 자동 종료 로직 호출
+            endTurn();
         }
 
         window.drawTile = () => {
@@ -448,11 +448,24 @@
             endTurn();
         }
 
+        // 💡 턴 종료 함수 (안내 메시지 포함)
         function endTurn() {
-            isPlayerTurn = false; clearInterval(timerInterval);
-            document.getElementById('timerDisplay').innerText = "대기중";
+            isPlayerTurn = false; 
+            clearInterval(timerInterval);
+            
+            // 타이머 숨김 처리
+            document.getElementById('timerDisplay').innerText = "대기";
+            document.getElementById('timerDisplay').className = "font-mono text-base font-bold text-slate-500";
+            
+            // 상태 메시지 '컴퓨터 생각중'으로 변경
+            const turnMsg = document.getElementById('turnStatusMessage');
+            turnMsg.innerHTML = '<i class="fas fa-robot"></i> 컴퓨터가 생각중입니다...';
+            turnMsg.className = 'text-xs font-black text-indigo-400 animate-pulse flex items-center gap-1';
+            
             selectedRackIds.clear(); selectedBoardIds.clear(); renderAll();
-            setTimeout(computerTurn, 1000); 
+            
+            // 컴퓨터가 1.5초간 '생각하는 척' 대기
+            setTimeout(computerTurn, 1500); 
         }
 
         function getPossibleComGroups() {
@@ -493,12 +506,17 @@
                     possibleGroups.forEach(g => { boardGroups.push(g); comRack = comRack.filter(t => !g.find(gt => gt.id === t.id)); });
                 } else if (deck.length > 0) comRack.push(deck.pop());
             }
-            isPlayerTurn = true; renderAll(); startTimer();
+            // 💡 컴퓨터 턴 종료 후 사용자 턴 시작 알림
+            startPlayerTurn();
         }
 
-        // 앱 시작
-        initDeck(); dealInitialTiles(); renderAll();
-        setTimeout(() => { alert("게임이 시작되었습니다! 카드를 터치하여 선택 후 '내기!'를 누르세요."); startTimer(); }, 500);
+        // 게임 시작
+        initDeck(); dealInitialTiles(); 
+        
+        setTimeout(() => { 
+            alert("게임이 시작되었습니다!\n카드를 터치하여 선택 후 '내기!'를 누르세요."); 
+            startPlayerTurn(); 
+        }, 500);
 
     </script>
 </body>
