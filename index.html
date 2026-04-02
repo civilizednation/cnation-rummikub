@@ -19,7 +19,6 @@
         
         :root {
             --board-scale: 1; 
-            /* 💡 타일 크기 20% 확대 (이전 22x32 -> 26x38) */
             --tile-w: 26px;
             --tile-h: 38px;
             --tile-fs: 17px;
@@ -50,7 +49,6 @@
             box-shadow: 0 6px 10px -2px rgba(250, 204, 21, 0.5);
         }
 
-        /* 💡 보드 안의 타일은 스케일 변수에 따라 자동 축소됨 */
         #board .rk-tile {
             width: calc(var(--tile-w) * var(--board-scale));
             height: calc(var(--tile-h) * var(--board-scale));
@@ -83,7 +81,7 @@
         .board-area { 
             background-color: #0f172a; 
             border-radius: 8px; 
-            overflow: hidden; /* 강제 스크롤 방지, 스케일링으로 해결 */
+            overflow: hidden; 
             align-content: flex-start;
         }
         
@@ -94,13 +92,21 @@
             min-height: 90px;
         }
         
+        /* 💡 바닥 그룹 선택 효과 강화 */
         #board .board-group {
             display: flex;
             gap: calc(2px * var(--board-scale));
-            padding: calc(3px * var(--board-scale));
+            padding: calc(4px * var(--board-scale));
             background-color: rgba(255, 255, 255, 0.05);
-            border-radius: calc(6px * var(--board-scale));
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: calc(8px * var(--board-scale));
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #board .board-group.selected {
+            background-color: rgba(250, 204, 21, 0.2);
+            border: 2px solid #facc15;
+            transform: scale(1.02);
         }
     </style>
 </head>
@@ -108,9 +114,23 @@
 
     <div id="startOverlay" class="absolute inset-0 bg-slate-900/95 z-50 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity duration-500">
         <h1 class="text-4xl font-black text-indigo-400 mb-2 text-center leading-tight">cnation<br>rummikub</h1>
-        <p class="text-slate-400 mb-10 font-bold text-sm">모바일 웹 에디션</p>
-        <button onclick="startGame()" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-8 py-4 rounded-2xl text-xl font-black shadow-[0_0_20px_rgba(234,179,8,0.4)] transform transition hover:scale-105 active:scale-95">
-            게임을 시작합니다 🚀
+        <p class="text-slate-400 mb-8 font-bold text-sm">모바일 웹 에디션</p>
+        
+        <div class="mb-8 w-full max-w-xs bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <label class="text-slate-400 font-bold text-xs mb-3 block text-center"><i class="fas fa-clock mr-1"></i> 턴 제한 시간 설정</label>
+            <div class="flex flex-wrap justify-center gap-2">
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(10, this)">10초</button>
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(20, this)">20초</button>
+                <button class="time-btn bg-yellow-500 text-slate-900 px-3 py-1.5 rounded-lg text-sm font-bold transition shadow-lg transform scale-105" onclick="selectTime(30, this)">30초</button>
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(60, this)">1분</button>
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(120, this)">2분</button>
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(300, this)">5분</button>
+                <button class="time-btn bg-slate-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition" onclick="selectTime(0, this)">무제한</button>
+            </div>
+        </div>
+
+        <button onclick="startGame()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl text-xl font-black shadow-[0_0_20px_rgba(99,102,241,0.4)] transform transition hover:scale-105 active:scale-95">
+            게임 시작하기 🚀
         </button>
     </div>
 
@@ -169,9 +189,12 @@
         let playerRack = [], comRack = [];
         let boardGroups = []; 
 
-        let selectedRackIds = new Set(), selectedBoardIds = new Set();
-        let isPlayerTurn = false; // 시작 전에는 조작 불가
+        let selectedRackIds = new Set();
+        let selectedBoardGroupIndices = new Set(); // 💡 바닥은 이제 '그룹 단위'로 선택됩니다.
+        
+        let isPlayerTurn = false; 
         let timerInterval, timeLeft = 30;
+        let turnTimeLimit = 30; // 💡 선택한 턴 시간 (기본 30초, 0은 무제한)
         
         let isPlayerInitialMeldDone = false;
         let isComInitialMeldDone = false;
@@ -217,6 +240,18 @@
             }
         }
 
+        // 💡 턴 시간 선택 로직
+        window.selectTime = (seconds, btnEl) => {
+            initAudio(); playSound('select');
+            turnTimeLimit = seconds;
+            document.querySelectorAll('.time-btn').forEach(b => {
+                b.classList.remove('bg-yellow-500', 'text-slate-900', 'shadow-lg', 'transform', 'scale-105');
+                b.classList.add('bg-slate-700', 'text-white');
+            });
+            btnEl.classList.remove('bg-slate-700', 'text-white');
+            btnEl.classList.add('bg-yellow-500', 'text-slate-900', 'shadow-lg', 'transform', 'scale-105');
+        }
+
         function initDeck() {
             deck = [];
             for (let set=0; set<2; set++) {
@@ -240,17 +275,12 @@
         window.sortRackByNum = () => { if(!isPlayerTurn) return; initAudio(); playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number); renderAll(); }
         window.sortRackByColor = () => { if(!isPlayerTurn) return; initAudio(); playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color)); renderAll(); }
 
-        // 💡 게임 시작 함수 (버튼 클릭 시 호출)
         window.startGame = () => {
-            initAudio();
-            playSound('start');
+            initAudio(); playSound('start');
             document.getElementById('startOverlay').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('startOverlay').style.display = 'none';
-            }, 500);
+            setTimeout(() => { document.getElementById('startOverlay').style.display = 'none'; }, 500);
             
-            initDeck(); 
-            dealInitialTiles();
+            initDeck(); dealInitialTiles();
             startPlayerTurn();
         }
 
@@ -267,43 +297,43 @@
         }
 
         function startPlayerTurn() {
-            isPlayerTurn = true;
-            hasPlayedThisTurn = false; 
-            setButtonsState(true);
+            isPlayerTurn = true; hasPlayedThisTurn = false; setButtonsState(true);
             
             const turnMsg = document.getElementById('turnStatusMessage');
             turnMsg.innerHTML = '<i class="fas fa-user"></i> 사용자 차례입니다';
             turnMsg.className = 'text-xs font-black text-emerald-400 flex items-center gap-1';
             
-            clearInterval(timerInterval); timeLeft = 30; updateTimerUI();
-            timerInterval = setInterval(() => {
-                timeLeft--; updateTimerUI();
-                if(timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    finishPlayerTurn(); 
-                }
-            }, 1000);
+            clearInterval(timerInterval);
+            
+            if (turnTimeLimit === 0) {
+                document.getElementById('timerDisplay').innerText = `무제한`;
+                document.getElementById('timerDisplay').className = `font-mono text-base font-bold text-emerald-400`;
+            } else {
+                timeLeft = turnTimeLimit;
+                updateTimerUI();
+                timerInterval = setInterval(() => {
+                    timeLeft--; updateTimerUI();
+                    if(timeLeft <= 0) { clearInterval(timerInterval); finishPlayerTurn(); }
+                }, 1000);
+            }
             renderAll();
         }
 
         function updateTimerUI() {
+            if (turnTimeLimit === 0) return;
             const el = document.getElementById('timerDisplay');
-            el.innerText = `⏱ ${timeLeft}`;
-            el.className = `font-mono text-base font-bold ${timeLeft<=10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            let displayStr = m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : s;
+            el.innerText = `⏱ ${displayStr}`;
+            el.className = `font-mono text-base font-bold ${timeLeft<=10 && m===0 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
         }
 
-        // 💡 강화된 보드 자동 축소 로직
         function adjustBoardScale() {
             const board = document.getElementById('board');
-            // 스케일 초기화
             board.style.setProperty('--board-scale', '1');
-            
-            // DOM이 실제로 업데이트된 후 크기를 측정하기 위해 setTimeout 사용
             setTimeout(() => {
-                let scale = 1.0;
-                let safety = 20; // 무한루프 방지
-                
-                // 바닥 내용물(scrollHeight)이 바닥 영역(clientHeight)을 넘어가면 축소 시작
+                let scale = 1.0; let safety = 20;
                 while (board.scrollHeight > board.clientHeight && scale > 0.4 && safety > 0) {
                     scale -= 0.05;
                     board.style.setProperty('--board-scale', scale.toFixed(2));
@@ -318,11 +348,9 @@
             
             const statusEl = document.getElementById('initialMeldStatus');
             if (isPlayerInitialMeldDone) {
-                statusEl.innerText = "✅ 자유롭게 조합 가능";
-                statusEl.className = "text-[10px] font-bold text-emerald-400";
+                statusEl.innerText = "✅ 자유롭게 조합 가능"; statusEl.className = "text-[10px] font-bold text-emerald-400";
             } else {
-                statusEl.innerText = "⚠️ 최초 등록 (합계 30 이상 필요)";
-                statusEl.className = "text-[10px] font-bold text-amber-400 animate-pulse";
+                statusEl.innerText = "⚠️ 최초 등록 (합계 30 이상 필요)"; statusEl.className = "text-[10px] font-bold text-amber-400 animate-pulse";
             }
             
             const rackEl = document.getElementById('playerRack'); rackEl.innerHTML = '';
@@ -333,11 +361,16 @@
             });
 
             const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
-            boardGroups.forEach((group) => {
-                const groupDiv = document.createElement('div'); groupDiv.className = 'board-group';
+            boardGroups.forEach((group, gIndex) => {
+                const groupDiv = document.createElement('div'); 
+                const isGroupSelected = selectedBoardGroupIndices.has(gIndex);
+                // 💡 그룹 전체가 덩어리로 선택되는 효과
+                groupDiv.className = `board-group ${isGroupSelected ? 'selected' : ''}`;
+                groupDiv.onclick = () => toggleBoardGroup(gIndex);
+                
                 group.forEach(tile => {
-                    const el = createTileEl(tile, selectedBoardIds.has(tile.id));
-                    el.onclick = () => toggleBoardTile(tile.id);
+                    const el = createTileEl(tile, isGroupSelected);
+                    el.onclick = (e) => { e.stopPropagation(); toggleBoardGroup(gIndex); };
                     groupDiv.appendChild(el);
                 });
                 boardEl.appendChild(groupDiv);
@@ -351,7 +384,6 @@
             let animClass = '';
             if (tile.isNewDraw) { animClass = 'anim-draw'; tile.isNewDraw = false; }
             if (tile.isNewPlay) { animClass = 'anim-play'; tile.isNewPlay = false; }
-
             el.className = `rk-tile color-${tile.color} ${isSelected ? 'selected' : ''} ${animClass}`;
             el.innerHTML = tile.number;
             return el;
@@ -362,9 +394,11 @@
             selectedRackIds.has(id) ? selectedRackIds.delete(id) : selectedRackIds.add(id);
             playSound('select'); renderAll();
         }
-        function toggleBoardTile(id) {
+        
+        // 💡 바닥은 타일 1개가 아닌 '그룹(덩어리)' 전체가 선택됨
+        window.toggleBoardGroup = (gIndex) => {
             initAudio(); if(!isPlayerTurn) return;
-            selectedBoardIds.has(id) ? selectedBoardIds.delete(id) : selectedBoardIds.add(id);
+            selectedBoardGroupIndices.has(gIndex) ? selectedBoardGroupIndices.delete(gIndex) : selectedBoardGroupIndices.add(gIndex);
             playSound('select'); renderAll();
         }
 
@@ -419,10 +453,11 @@
             return false;
         }
 
+        // 💡 막강한 파티셔닝(그룹 분할 및 결합) 엔진
         function partitionIntoValidGroups(tiles) {
             if (tiles.length === 0) return [];
             let n = tiles.length;
-            if (n > 18) { alert("한 번에 너무 많은 타일을 낼 수 없습니다."); return null; }
+            if (n > 20) { alert("한 번에 너무 많은 타일을 재배열할 수 없습니다."); return null; }
 
             let validSubsets = [];
             for(let i=1; i < (1<<n); i++) {
@@ -458,35 +493,28 @@
 
             let proposedTiles = [];
             let rackTilesToRemove = [];
-            let boardTilesToRemoveByGroup = {};
 
             playerRack.forEach(t => { if(selectedRackIds.has(t.id)) { proposedTiles.push(t); rackTilesToRemove.push(t.id); } });
+            
+            // 선택된 바닥 그룹의 모든 타일을 재배열 후보(proposedTiles)로 흡수
             boardGroups.forEach((group, gIndex) => {
-                group.forEach(t => {
-                    if(selectedBoardIds.has(t.id)) {
-                        proposedTiles.push(t);
-                        if(!boardTilesToRemoveByGroup[gIndex]) boardTilesToRemoveByGroup[gIndex] = [];
-                        boardTilesToRemoveByGroup[gIndex].push(t.id);
-                    }
-                });
+                if(selectedBoardGroupIndices.has(gIndex)) {
+                    group.forEach(t => { proposedTiles.push(t); });
+                }
             });
 
             if(proposedTiles.length === 0) return;
 
+            // 💡 선택된 모든 타일들을 인공지능이 최적의 3개 이상 그룹들로 재분할
             let partitions = partitionIntoValidGroups(proposedTiles);
             if(!partitions) { playSound('error'); return; }
 
             if (!isPlayerInitialMeldDone) {
-                if (Object.keys(boardTilesToRemoveByGroup).length > 0) { playSound('error'); return; }
+                if (selectedBoardGroupIndices.size > 0) { playSound('error'); alert("첫 등록 시에는 바닥에 있는 카드를 사용할 수 없습니다!"); return; }
                 let sum = 0;
                 partitions.forEach(g => sum += g.reduce((acc, t) => acc + t.currentValue, 0));
-                if (sum < 30) { playSound('error'); return; }
+                if (sum < 30) { playSound('error'); alert(`첫 등록은 합계가 30 이상이어야 합니다. (현재: ${sum}점)`); return; }
                 isPlayerInitialMeldDone = true;
-            }
-
-            for (let gIndex in boardTilesToRemoveByGroup) {
-                let remaining = boardGroups[gIndex].filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
-                if(remaining.length > 0 && !validateAndSortGroup(remaining)) { playSound('error'); return; }
             }
 
             playSound('submit');
@@ -495,10 +523,8 @@
 
             let newBoardGroups = [];
             boardGroups.forEach((group, gIndex) => {
-                if(boardTilesToRemoveByGroup[gIndex]) {
-                    let remaining = group.filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
-                    if(remaining.length > 0) newBoardGroups.push(validateAndSortGroup(remaining));
-                } else {
+                // 선택되지 않은 기존 바닥 그룹들은 그대로 유지
+                if(!selectedBoardGroupIndices.has(gIndex)) {
                     newBoardGroups.push(group);
                 }
             });
@@ -509,7 +535,7 @@
             });
             boardGroups = newBoardGroups;
 
-            selectedRackIds.clear(); selectedBoardIds.clear();
+            selectedRackIds.clear(); selectedBoardGroupIndices.clear();
             renderAll(); 
         }
 
@@ -539,7 +565,7 @@
             turnMsg.innerHTML = '<i class="fas fa-robot"></i> 컴퓨터가 생각중입니다...';
             turnMsg.className = 'text-xs font-black text-indigo-400 animate-pulse flex items-center gap-1';
             
-            selectedRackIds.clear(); selectedBoardIds.clear(); renderAll();
+            selectedRackIds.clear(); selectedBoardGroupIndices.clear(); renderAll();
             
             setTimeout(computerTurn, 1500); 
         }
@@ -581,8 +607,7 @@
                         boardGroups.push(g); 
                         comRack = comRack.filter(t => !g.find(gt => gt.id === t.id)); 
                     });
-                    isComInitialMeldDone = true;
-                    played = true;
+                    isComInitialMeldDone = true; played = true;
                 }
             } else {
                 if (possibleGroups.length > 0) {
@@ -595,13 +620,13 @@
                 }
             }
             
-            if (!played && deck.length > 0) {
-                comRack.push(deck.pop());
-            }
+            if (!played && deck.length > 0) { comRack.push(deck.pop()); }
             
             playSound('draw'); 
             startPlayerTurn();
         }
+
     </script>
 </body>
 </html>
+
