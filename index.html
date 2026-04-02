@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>cnation-rummikub</title>
+    <title>명국이의 루미큐브</title></title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -128,8 +128,8 @@
             <button onclick="submitCombination()" id="playBtn" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-3 py-1.5 rounded-md text-xs font-black shadow-md transition">
                 내기!
             </button>
-            <button onclick="drawTile()" id="drawBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition">
-                먹기(패스)
+            <button onclick="finishPlayerTurn()" id="endTurnBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition">
+                턴 종료
             </button>
         </div>
     </div>
@@ -148,6 +148,9 @@
         
         let isPlayerInitialMeldDone = false;
         let isComInitialMeldDone = false;
+        
+        // 💡 이번 턴에 카드를 한 장이라도 냈는지 추적하는 변수
+        let hasPlayedThisTurn = false;
 
         let audioCtx = null;
         function initAudio() {
@@ -202,9 +205,11 @@
         window.sortRackByNum = () => { initAudio(); playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number); renderAll(); }
         window.sortRackByColor = () => { initAudio(); playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color)); renderAll(); }
 
-        // 💡 턴 시작 로직
+        // 사용자 턴 시작 초기화
         function startPlayerTurn() {
             isPlayerTurn = true;
+            hasPlayedThisTurn = false; // 턴 시작 시 '카드를 낸 기록' 초기화
+            
             const turnMsg = document.getElementById('turnStatusMessage');
             turnMsg.innerHTML = '<i class="fas fa-user"></i> 사용자 차례입니다';
             turnMsg.className = 'text-xs font-black text-emerald-400 flex items-center gap-1';
@@ -214,7 +219,8 @@
                 timeLeft--; updateTimerUI();
                 if(timeLeft <= 0) {
                     clearInterval(timerInterval); playSound('error');
-                    alert("시간 초과! 타일을 하나 먹습니다."); drawTile();
+                    alert("시간 초과!"); 
+                    finishPlayerTurn(); // 시간 초과 시 강제로 턴 종료 로직 실행
                 }
             }, 1000);
             renderAll();
@@ -421,8 +427,9 @@
                 }
             }
 
-            // 💡 등록 성공 시: 타일을 바닥에 깐다
+            // 💡 카드 내기 성공! (하지만 턴은 끝나지 않음)
             playSound('submit');
+            hasPlayedThisTurn = true; // 이번 턴에 카드를 냈음을 기록!
             playerRack = playerRack.filter(t => !rackTilesToRemove.includes(t.id));
 
             let newBoardGroups = [];
@@ -438,33 +445,41 @@
             partitions.forEach(g => newBoardGroups.push(g));
             boardGroups = newBoardGroups;
 
-            // 💡 턴 자동 종료 로직 호출
-            endTurn();
+            selectedRackIds.clear(); selectedBoardIds.clear();
+            renderAll(); // 턴을 넘기지 않고 다시 화면만 그려줌
         }
 
-        window.drawTile = () => {
-            initAudio(); if (!isPlayerTurn || deck.length === 0) return;
-            playerRack.push(deck.pop());
-            endTurn();
+        // 💡 턴 종료 버튼 로직 (먹기 벌칙 자동 검사)
+        window.finishPlayerTurn = () => {
+            initAudio(); 
+            if (!isPlayerTurn) return;
+            
+            // 카드를 한 번도 내지 않았다면 자동 벌칙 1장 먹기
+            if (!hasPlayedThisTurn) {
+                if (deck.length > 0) {
+                    playerRack.push(deck.pop());
+                    playSound('error'); // 먹을 때는 띠딕 소리
+                    alert("카드를 한 장도 내지 않아 타일을 1장 먹습니다.");
+                } else {
+                    alert("남은 덱이 없어 타일을 먹지 않고 턴을 종료합니다.");
+                }
+            }
+            
+            endTurn(); // 실제 턴 넘기기
         }
 
-        // 💡 턴 종료 함수 (안내 메시지 포함)
         function endTurn() {
             isPlayerTurn = false; 
             clearInterval(timerInterval);
             
-            // 타이머 숨김 처리
             document.getElementById('timerDisplay').innerText = "대기";
             document.getElementById('timerDisplay').className = "font-mono text-base font-bold text-slate-500";
             
-            // 상태 메시지 '컴퓨터 생각중'으로 변경
             const turnMsg = document.getElementById('turnStatusMessage');
             turnMsg.innerHTML = '<i class="fas fa-robot"></i> 컴퓨터가 생각중입니다...';
             turnMsg.className = 'text-xs font-black text-indigo-400 animate-pulse flex items-center gap-1';
             
             selectedRackIds.clear(); selectedBoardIds.clear(); renderAll();
-            
-            // 컴퓨터가 1.5초간 '생각하는 척' 대기
             setTimeout(computerTurn, 1500); 
         }
 
@@ -506,15 +521,13 @@
                     possibleGroups.forEach(g => { boardGroups.push(g); comRack = comRack.filter(t => !g.find(gt => gt.id === t.id)); });
                 } else if (deck.length > 0) comRack.push(deck.pop());
             }
-            // 💡 컴퓨터 턴 종료 후 사용자 턴 시작 알림
             startPlayerTurn();
         }
 
-        // 게임 시작
         initDeck(); dealInitialTiles(); 
         
         setTimeout(() => { 
-            alert("게임이 시작되었습니다!\n카드를 터치하여 선택 후 '내기!'를 누르세요."); 
+            alert("게임이 시작되었습니다!\n카드를 터치하여 선택 후 '내기!'를 누르세요.\n다 냈으면 '턴 종료'를 눌러주세요."); 
             startPlayerTurn(); 
         }, 500);
 
