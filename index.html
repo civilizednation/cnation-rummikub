@@ -11,7 +11,7 @@
     <style>
         body { background-color: #1e293b; color: white; user-select: none; }
         
-        /* 💡 타일 크기를 2/3 수준으로 축소 */
+        /* 타일 크기 2/3 수준 유지 */
         .rk-tile {
             width: 30px;
             height: 42px;
@@ -29,7 +29,6 @@
             border: 2px solid transparent;
         }
         
-        /* 선택된 타일 효과 */
         .rk-tile.selected {
             transform: translateY(-5px);
             border: 2px solid #facc15;
@@ -45,7 +44,6 @@
         .board-area { min-height: 40vh; background-color: #0f172a; border-radius: 12px; }
         .rack-area { min-height: 100px; background-color: #334155; border-radius: 12px; border: 3px solid #475569; }
         
-        /* 보드 그룹 간격 축소 */
         .board-group {
             display: flex;
             gap: 2px;
@@ -111,11 +109,10 @@
         let isPlayerTurn = true;
         let timerInterval, timeLeft = 30;
         
-        // 💡 최초 등록 30점 룰 체크용 변수
         let isPlayerInitialMeldDone = false;
         let isComInitialMeldDone = false;
 
-        // 🎵 웹 오디오 설정 (효과음)
+        // 🎵 사운드 시스템
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -129,25 +126,19 @@
             let now = audioCtx.currentTime;
             
             if (type === 'select') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, now);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
                 osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
                 osc.start(now); osc.stop(now + 0.05);
             } else if (type === 'submit') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(400, now);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now);
                 osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
                 osc.start(now); osc.stop(now + 0.15);
             } else if (type === 'error') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, now);
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
                 osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
                 osc.start(now); osc.stop(now + 0.2);
             }
         }
@@ -172,26 +163,16 @@
             sortRackByNum();
         }
 
-        window.sortRackByNum = () => {
-            initAudio();
-            playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number);
-            renderAll();
-        }
-        window.sortRackByColor = () => {
-            initAudio();
-            playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color));
-            renderAll();
-        }
+        window.sortRackByNum = () => { initAudio(); playerRack.sort((a,b) => a.number===b.number ? a.color.localeCompare(b.color) : a.number-b.number); renderAll(); }
+        window.sortRackByColor = () => { initAudio(); playerRack.sort((a,b) => a.color===b.color ? a.number-b.number : a.color.localeCompare(b.color)); renderAll(); }
 
         function startTimer() {
             clearInterval(timerInterval); timeLeft = 30; updateTimerUI();
             timerInterval = setInterval(() => {
                 timeLeft--; updateTimerUI();
                 if(timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    playSound('error');
-                    alert("시간 초과! 타일을 하나 먹습니다.");
-                    drawTile();
+                    clearInterval(timerInterval); playSound('error');
+                    alert("시간 초과! 타일을 하나 먹습니다."); drawTile();
                 }
             }, 1000);
         }
@@ -252,30 +233,29 @@
             playSound('select'); renderAll();
         }
 
-        // 💡 룰 검증 및 "자동 정렬" 함수 (가장 중요한 핵심 로직)
+        // 💡 1. 단일 그룹 검증 및 오름차순 자동 정렬
         function validateAndSortGroup(tiles) {
             if (tiles.length < 3) return false;
             let jokers = tiles.filter(t => t.isJoker);
             let regs = tiles.filter(t => !t.isJoker);
             if (regs.length === 0) return true;
 
-            // 체크 1: 같은 숫자
+            // 같은 숫자 조합
             let isSameNum = new Set(regs.map(t => t.number)).size === 1;
             if (isSameNum) {
                 let colors = new Set(regs.map(t => t.color));
                 if (colors.size === regs.length && tiles.length <= 4) {
                     let num = regs[0].number;
-                    tiles.forEach(t => t.currentValue = num); // 조커도 이 숫자로 취급
-                    // 모양순 정렬
+                    tiles.forEach(t => t.currentValue = num);
                     tiles.sort((a,b) => {
                         if(a.isJoker) return 1; if(b.isJoker) return -1;
                         return a.color.localeCompare(b.color);
                     });
-                    return tiles; // 정렬된 배열 반환
+                    return tiles;
                 }
             }
 
-            // 체크 2: 연속 숫자
+            // 연속 숫자 조합
             let isConsecutive = true;
             let color = regs[0].color;
             if (regs.every(t => t.color === color)) {
@@ -283,32 +263,66 @@
                 let neededJokers = 0;
                 for(let i=0; i<sortedRegs.length-1; i++) {
                     let diff = sortedRegs[i+1].number - sortedRegs[i].number - 1;
-                    if (diff < 0) { isConsecutive = false; break; } // 중복 숫자 불가
+                    if (diff < 0) { isConsecutive = false; break; }
                     neededJokers += diff;
                 }
                 
                 if (isConsecutive && neededJokers <= jokers.length) {
-                    // 연속 숫자 오름차순 자동 정렬 및 빈칸에 조커 끼워넣기
-                    let result = [];
-                    let jIdx = 0;
-                    let currentNum = sortedRegs[0].number;
-                    
+                    let result = [], jIdx = 0, currentNum = sortedRegs[0].number;
                     for (let i = 0; i < sortedRegs.length; i++) {
                         while (currentNum < sortedRegs[i].number) {
-                            let j = jokers[jIdx++]; j.currentValue = currentNum;
-                            result.push(j); currentNum++;
+                            let j = jokers[jIdx++]; j.currentValue = currentNum++;
+                            result.push(j);
                         }
                         sortedRegs[i].currentValue = sortedRegs[i].number;
                         result.push(sortedRegs[i]); currentNum++;
                     }
                     while (jIdx < jokers.length) {
-                        let j = jokers[jIdx++]; j.currentValue = currentNum;
-                        result.push(j); currentNum++;
+                        let j = jokers[jIdx++]; j.currentValue = currentNum++;
+                        result.push(j);
                     }
-                    return result; // 완벽하게 정렬된 배열 반환
+                    return result;
                 }
             }
             return false;
+        }
+
+        // 💡 2. 다중 그룹 파티셔닝 알고리즘 (여러 세트 동시 제출 허용!)
+        function partitionIntoValidGroups(tiles) {
+            if (tiles.length === 0) return [];
+            let n = tiles.length;
+            if (n > 18) { alert("한 번에 너무 많은 타일을 낼 수 없습니다."); return null; }
+
+            // 가능한 모든 부분집합 생성 후 유효한 것만 추려냄
+            let validSubsets = [];
+            for(let i=1; i < (1<<n); i++) {
+                let subset = [];
+                for(let j=0; j<n; j++) { if (i & (1<<j)) subset.push(tiles[j]); }
+                if (subset.length >= 3) {
+                    let sorted = validateAndSortGroup([...subset]);
+                    if (sorted) validSubsets.push(sorted);
+                }
+            }
+            
+            // 모든 타일을 빠짐없이 덮는 유효한 그룹들의 묶음(Partition)을 찾음
+            function search(remainingIds, currentPartition) {
+                if (remainingIds.length === 0) return currentPartition;
+                for (let subset of validSubsets) {
+                    let canUse = true;
+                    for (let t of subset) { if (!remainingIds.includes(t.id)) { canUse = false; break; } }
+                    if (canUse) {
+                        let nextRemaining = remainingIds.filter(id => !subset.find(t=>t.id===id));
+                        let res = search(nextRemaining, [...currentPartition, subset]);
+                        if (res) return res;
+                    }
+                }
+                return null;
+            }
+
+            let finalPartition = search(tiles.map(t=>t.id), []);
+            // 찾은 그룹들의 currentValue를 최종적으로 정렬하여 확정
+            if (finalPartition) finalPartition.forEach(group => validateAndSortGroup(group));
+            return finalPartition;
         }
 
         window.submitCombination = () => {
@@ -318,6 +332,7 @@
             let rackTilesToRemove = [];
             let boardTilesToRemoveByGroup = {};
 
+            // 유저가 선택한 타일 싹 쓸어담기
             playerRack.forEach(t => { if(selectedRackIds.has(t.id)) { proposedTiles.push(t); rackTilesToRemove.push(t.id); } });
             boardGroups.forEach((group, gIndex) => {
                 group.forEach(t => {
@@ -329,33 +344,37 @@
                 });
             });
 
-            // 💡 자동 정렬 및 검증 실행
-            let sortedGroup = validateAndSortGroup(proposedTiles);
+            if(proposedTiles.length === 0) return;
 
-            if(!sortedGroup) {
-                playSound('error'); alert("규칙에 맞지 않는 조합입니다."); return;
+            // 💡 여기서 여러 그룹으로 나눌 수 있는지 검사!
+            let partitions = partitionIntoValidGroups(proposedTiles);
+
+            if(!partitions) {
+                playSound('error'); alert("규칙에 맞지 않는 조합입니다. (정상적인 3개 이상 그룹들로 나눌 수 없습니다.)"); return;
             }
 
-            // 💡 최초 등록 (30점) 룰 체크
+            // 최초 등록 (30점) 검사
             if (!isPlayerInitialMeldDone) {
                 if (Object.keys(boardTilesToRemoveByGroup).length > 0) {
                     playSound('error'); alert("첫 등록 시에는 바닥에 있는 카드를 사용할 수 없습니다!"); return;
                 }
-                let sum = sortedGroup.reduce((acc, t) => acc + t.currentValue, 0);
+                let sum = 0;
+                partitions.forEach(g => sum += g.reduce((acc, t) => acc + t.currentValue, 0));
                 if (sum < 30) {
                     playSound('error'); alert(`첫 등록은 합계가 30 이상이어야 합니다. (현재 합계: ${sum}점)`); return;
                 }
                 isPlayerInitialMeldDone = true;
             }
 
+            // 바닥에서 카드 빼왔을 때 남은 찌꺼기들이 정상인지 검사
             for (let gIndex in boardTilesToRemoveByGroup) {
                 let remaining = boardGroups[gIndex].filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
                 if(remaining.length > 0 && !validateAndSortGroup(remaining)) {
-                    playSound('error'); alert("바닥에서 남은 타일들도 정상적인 조합(3개 이상)이어야 합니다."); return;
+                    playSound('error'); alert("바닥에서 일부 타일을 가져올 경우, 남겨진 타일들도 정상 조합(3개 이상)이어야 합니다."); return;
                 }
             }
 
-            // 성공 처리
+            // 모두 통과! (성공 처리)
             playSound('submit');
             playerRack = playerRack.filter(t => !rackTilesToRemove.includes(t.id));
 
@@ -369,7 +388,8 @@
                 }
             });
             
-            newBoardGroups.push(sortedGroup); // 정렬된 그룹으로 바닥에 투척!
+            // 쪼개진 파티션(그룹)들을 각각 바닥에 던짐
+            partitions.forEach(g => newBoardGroups.push(g));
             boardGroups = newBoardGroups;
 
             selectedRackIds.clear(); selectedBoardIds.clear();
@@ -389,6 +409,7 @@
             setTimeout(computerTurn, 1000); 
         }
 
+        // 컴퓨터 AI도 다중 그룹 파티셔닝 및 30점 룰 적용
         function getPossibleComGroups() {
             let foundGroups = []; let rack = [...comRack];
             for(let n=1; n<=13; n++) {
@@ -431,9 +452,7 @@
         }
 
         initDeck(); dealInitialTiles(); renderAll();
-        
-        // 브라우저 정책상 첫 클릭 전에는 오디오/타이머 제한될 수 있어 알림 팝업 추가
-        setTimeout(() => { alert("게임이 시작되었습니다! 내 카드를 선택하고 진행해주세요."); startTimer(); }, 500);
+        setTimeout(() => { alert("게임이 시작되었습니다! 카드를 터치하여 선택 후 '내기!'를 누르세요."); startTimer(); }, 500);
 
     </script>
 </body>
