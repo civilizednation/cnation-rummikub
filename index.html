@@ -2,37 +2,60 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>cnation-rummikub</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body { background-color: #1e293b; color: white; user-select: none; }
+        /* 스마트폰 화면 꽉 채우기 및 스크롤 방지 */
+        body { 
+            background-color: #1e293b; 
+            color: white; 
+            user-select: none; 
+            overflow: hidden; /* 전체 스크롤 금지 */
+            touch-action: none; /* 모바일 브라우저 당김 새로고침 방지 */
+        }
         
-        /* 타일 크기 2/3 수준 유지 */
+        :root {
+            --board-scale: 1; /* 바닥 타일 축소 비율 (JS에서 자동 조절) */
+            --tile-w: 22px;
+            --tile-h: 32px;
+            --tile-fs: 14px;
+        }
+
+        /* 💡 2/3로 더 작아진 앙증맞은 타일 */
         .rk-tile {
-            width: 30px;
-            height: 42px;
+            width: var(--tile-w);
+            height: var(--tile-h);
             background-color: #f8fafc;
-            border-radius: 6px;
-            box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0,0,0,0.1);
+            border-radius: 4px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.3), inset 0 -2px 0 rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: var(--tile-fs);
             font-weight: 900;
             cursor: pointer;
-            transition: transform 0.15s, border 0.15s;
+            transition: transform 0.1s, border 0.1s;
             border: 2px solid transparent;
+            flex-shrink: 0;
         }
         
         .rk-tile.selected {
-            transform: translateY(-5px);
+            transform: translateY(-4px);
             border: 2px solid #facc15;
-            box-shadow: 0 8px 12px -3px rgba(250, 204, 21, 0.4);
+            box-shadow: 0 4px 8px -2px rgba(250, 204, 21, 0.5);
+        }
+
+        /* 바닥에 있는 타일은 공간이 부족하면 자동 축소됨 */
+        #board .rk-tile {
+            width: calc(var(--tile-w) * var(--board-scale));
+            height: calc(var(--tile-h) * var(--board-scale));
+            font-size: calc(var(--tile-fs) * var(--board-scale));
+            border-radius: calc(4px * var(--board-scale));
         }
         
         .color-black { color: #111827; }
@@ -41,63 +64,79 @@
         .color-orange { color: #f59e0b; }
         .color-joker { color: #ec4899; }
 
-        .board-area { min-height: 40vh; background-color: #0f172a; border-radius: 12px; }
-        .rack-area { min-height: 100px; background-color: #334155; border-radius: 12px; border: 3px solid #475569; }
+        /* 레이아웃 영역 */
+        .board-area { 
+            background-color: #0f172a; 
+            border-radius: 8px; 
+            /* 내부 스크롤은 최후의 보루로 남겨둠 */
+            overflow-y: auto; 
+            align-content: flex-start;
+        }
         
-        .board-group {
+        .rack-area { 
+            background-color: #334155; 
+            border-radius: 8px; 
+            border: 2px solid #475569; 
+            min-height: 80px;
+        }
+        
+        #board .board-group {
             display: flex;
-            gap: 2px;
-            padding: 4px 6px;
+            gap: calc(2px * var(--board-scale));
+            padding: calc(3px * var(--board-scale));
             background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            border-radius: calc(6px * var(--board-scale));
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
-<body class="h-screen flex flex-col p-3">
+<body class="h-[100dvh] flex flex-col p-2 gap-2">
 
-    <div class="flex justify-between items-center mb-2 bg-slate-800 p-3 rounded-xl shadow-lg">
+    <div class="flex justify-between items-center bg-slate-800 p-2 rounded-lg shadow-md shrink-0">
         <div>
-            <h1 class="text-lg font-black text-indigo-400">cnation-rummikub</h1>
-            <p class="text-[10px] text-slate-400 mt-0.5" id="deckCount">남은 덱: 106</p>
+            <h1 class="text-base font-black text-indigo-400 leading-tight">cnation<br>rummikub</h1>
         </div>
         <div class="flex items-center gap-3">
-            <div id="timerDisplay" class="font-mono text-lg font-bold text-rose-400">⏱ 30</div>
-            <div class="bg-slate-700 px-3 py-1 rounded-lg text-center">
-                <p class="text-[9px] text-slate-400 font-bold">컴퓨터</p>
-                <p class="text-base font-black text-white" id="comTileCount">14</p>
+            <div id="timerDisplay" class="font-mono text-base font-bold text-rose-400">⏱ 30</div>
+            <div class="bg-slate-700 px-2 py-1 rounded-md text-center">
+                <p class="text-[8px] text-slate-400 font-bold leading-none">컴퓨터</p>
+                <p class="text-sm font-black text-white leading-tight" id="comTileCount">14</p>
+            </div>
+            <div class="bg-slate-700 px-2 py-1 rounded-md text-center">
+                <p class="text-[8px] text-slate-400 font-bold leading-none">남은덱</p>
+                <p class="text-sm font-black text-white leading-tight" id="deckCount">106</p>
             </div>
         </div>
     </div>
 
-    <div class="flex justify-between items-center mb-2 px-1">
-        <span id="initialMeldStatus" class="text-xs font-bold text-amber-400 animate-pulse">
+    <div class="flex justify-between items-center px-1 shrink-0">
+        <span id="initialMeldStatus" class="text-[10px] font-bold text-amber-400 animate-pulse">
             ⚠️ 최초 등록 (합계 30 이상 필요)
         </span>
     </div>
 
-    <div class="flex-1 board-area p-3 mb-2 flex flex-wrap content-start gap-2 overflow-y-auto" id="board"></div>
+    <div class="flex-1 board-area p-2 flex flex-wrap gap-1.5" id="board"></div>
 
-    <div class="mb-2 flex flex-wrap justify-between items-center gap-2">
-        <div class="flex gap-2">
-            <button onclick="sortRackByNum()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded text-[11px] font-bold transition">
-                <i class="fas fa-sort-numeric-down mr-1"></i>숫자
+    <div class="flex justify-between items-center gap-1 shrink-0">
+        <div class="flex gap-1">
+            <button onclick="sortRackByNum()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1.5 rounded text-[10px] font-bold transition">
+                <i class="fas fa-sort-numeric-down mr-0.5"></i>숫자
             </button>
-            <button onclick="sortRackByColor()" class="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded text-[11px] font-bold transition">
-                <i class="fas fa-palette mr-1"></i>모양
+            <button onclick="sortRackByColor()" class="bg-slate-600 hover:bg-slate-500 px-2 py-1.5 rounded text-[10px] font-bold transition">
+                <i class="fas fa-palette mr-0.5"></i>모양
             </button>
         </div>
-        <div class="flex gap-2">
-            <button onclick="submitCombination()" id="playBtn" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-4 py-2 rounded-lg text-sm font-black shadow-lg transition">
+        <div class="flex gap-1">
+            <button onclick="submitCombination()" id="playBtn" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 px-3 py-1.5 rounded-md text-xs font-black shadow-md transition">
                 내기!
             </button>
-            <button onclick="drawTile()" id="drawBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition">
+            <button onclick="drawTile()" id="drawBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-md transition">
                 먹기(패스)
             </button>
         </div>
     </div>
 
-    <div class="rack-area p-3 flex flex-wrap gap-1.5 items-center justify-center" id="playerRack"></div>
+    <div class="rack-area p-2 flex flex-wrap gap-1 items-center justify-center shrink-0" id="playerRack"></div>
 
     <script>
         const COLORS = ['black', 'red', 'blue', 'orange'];
@@ -112,7 +151,7 @@
         let isPlayerInitialMeldDone = false;
         let isComInitialMeldDone = false;
 
-        // 🎵 사운드 시스템
+        // 사운드 시스템
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -180,20 +219,38 @@
         function updateTimerUI() {
             const el = document.getElementById('timerDisplay');
             el.innerText = `⏱ ${timeLeft}`;
-            el.className = `font-mono text-lg font-bold ${timeLeft<=10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
+            el.className = `font-mono text-base font-bold ${timeLeft<=10 ? 'text-red-500 animate-bounce' : 'text-emerald-400'}`;
+        }
+
+        // 💡 핵심 기능: 공간 부족 시 바닥 타일 자동 축소 (Auto-Scaling)
+        function adjustBoardScale() {
+            const board = document.getElementById('board');
+            let scale = 1.0;
+            board.style.setProperty('--board-scale', scale);
+            
+            // 렌더링 후 약간의 시간차를 두고 크기 계산
+            setTimeout(() => {
+                let safety = 15; // 무한루프 방지
+                // 내용물이 컨테이너 높이보다 크면 크기를 5%씩 줄임 (최대 절반까지)
+                while (board.scrollHeight > board.clientHeight && scale > 0.5 && safety > 0) {
+                    scale -= 0.05;
+                    board.style.setProperty('--board-scale', scale);
+                    safety--;
+                }
+            }, 10);
         }
 
         function renderAll() {
-            document.getElementById('deckCount').innerText = `남은 덱: ${deck.length}`;
+            document.getElementById('deckCount').innerText = deck.length;
             document.getElementById('comTileCount').innerText = comRack.length;
             
             const statusEl = document.getElementById('initialMeldStatus');
             if (isPlayerInitialMeldDone) {
                 statusEl.innerText = "✅ 자유롭게 조합 가능";
-                statusEl.className = "text-xs font-bold text-emerald-400";
+                statusEl.className = "text-[10px] font-bold text-emerald-400";
             } else {
                 statusEl.innerText = "⚠️ 최초 등록 (합계 30 이상 필요)";
-                statusEl.className = "text-xs font-bold text-amber-400 animate-pulse";
+                statusEl.className = "text-[10px] font-bold text-amber-400 animate-pulse";
             }
             
             const rackEl = document.getElementById('playerRack'); rackEl.innerHTML = '';
@@ -213,6 +270,9 @@
                 });
                 boardEl.appendChild(groupDiv);
             });
+
+            // 화면을 다 그렸으면 축소 검사 실행
+            adjustBoardScale();
         }
 
         function createTileEl(tile, isSelected) {
@@ -233,14 +293,12 @@
             playSound('select'); renderAll();
         }
 
-        // 💡 1. 단일 그룹 검증 및 오름차순 자동 정렬
         function validateAndSortGroup(tiles) {
             if (tiles.length < 3) return false;
             let jokers = tiles.filter(t => t.isJoker);
             let regs = tiles.filter(t => !t.isJoker);
             if (regs.length === 0) return true;
 
-            // 같은 숫자 조합
             let isSameNum = new Set(regs.map(t => t.number)).size === 1;
             if (isSameNum) {
                 let colors = new Set(regs.map(t => t.color));
@@ -255,7 +313,6 @@
                 }
             }
 
-            // 연속 숫자 조합
             let isConsecutive = true;
             let color = regs[0].color;
             if (regs.every(t => t.color === color)) {
@@ -287,13 +344,11 @@
             return false;
         }
 
-        // 💡 2. 다중 그룹 파티셔닝 알고리즘 (여러 세트 동시 제출 허용!)
         function partitionIntoValidGroups(tiles) {
             if (tiles.length === 0) return [];
             let n = tiles.length;
             if (n > 18) { alert("한 번에 너무 많은 타일을 낼 수 없습니다."); return null; }
 
-            // 가능한 모든 부분집합 생성 후 유효한 것만 추려냄
             let validSubsets = [];
             for(let i=1; i < (1<<n); i++) {
                 let subset = [];
@@ -304,7 +359,6 @@
                 }
             }
             
-            // 모든 타일을 빠짐없이 덮는 유효한 그룹들의 묶음(Partition)을 찾음
             function search(remainingIds, currentPartition) {
                 if (remainingIds.length === 0) return currentPartition;
                 for (let subset of validSubsets) {
@@ -320,7 +374,6 @@
             }
 
             let finalPartition = search(tiles.map(t=>t.id), []);
-            // 찾은 그룹들의 currentValue를 최종적으로 정렬하여 확정
             if (finalPartition) finalPartition.forEach(group => validateAndSortGroup(group));
             return finalPartition;
         }
@@ -332,7 +385,6 @@
             let rackTilesToRemove = [];
             let boardTilesToRemoveByGroup = {};
 
-            // 유저가 선택한 타일 싹 쓸어담기
             playerRack.forEach(t => { if(selectedRackIds.has(t.id)) { proposedTiles.push(t); rackTilesToRemove.push(t.id); } });
             boardGroups.forEach((group, gIndex) => {
                 group.forEach(t => {
@@ -346,14 +398,11 @@
 
             if(proposedTiles.length === 0) return;
 
-            // 💡 여기서 여러 그룹으로 나눌 수 있는지 검사!
             let partitions = partitionIntoValidGroups(proposedTiles);
-
             if(!partitions) {
-                playSound('error'); alert("규칙에 맞지 않는 조합입니다. (정상적인 3개 이상 그룹들로 나눌 수 없습니다.)"); return;
+                playSound('error'); alert("규칙에 맞지 않는 조합입니다."); return;
             }
 
-            // 최초 등록 (30점) 검사
             if (!isPlayerInitialMeldDone) {
                 if (Object.keys(boardTilesToRemoveByGroup).length > 0) {
                     playSound('error'); alert("첫 등록 시에는 바닥에 있는 카드를 사용할 수 없습니다!"); return;
@@ -361,20 +410,18 @@
                 let sum = 0;
                 partitions.forEach(g => sum += g.reduce((acc, t) => acc + t.currentValue, 0));
                 if (sum < 30) {
-                    playSound('error'); alert(`첫 등록은 합계가 30 이상이어야 합니다. (현재 합계: ${sum}점)`); return;
+                    playSound('error'); alert(`첫 등록은 합계가 30 이상이어야 합니다. (현재: ${sum}점)`); return;
                 }
                 isPlayerInitialMeldDone = true;
             }
 
-            // 바닥에서 카드 빼왔을 때 남은 찌꺼기들이 정상인지 검사
             for (let gIndex in boardTilesToRemoveByGroup) {
                 let remaining = boardGroups[gIndex].filter(t => !boardTilesToRemoveByGroup[gIndex].includes(t.id));
                 if(remaining.length > 0 && !validateAndSortGroup(remaining)) {
-                    playSound('error'); alert("바닥에서 일부 타일을 가져올 경우, 남겨진 타일들도 정상 조합(3개 이상)이어야 합니다."); return;
+                    playSound('error'); alert("바닥에 남겨진 타일들이 정상적인 3개 이상 그룹이 아닙니다."); return;
                 }
             }
 
-            // 모두 통과! (성공 처리)
             playSound('submit');
             playerRack = playerRack.filter(t => !rackTilesToRemove.includes(t.id));
 
@@ -388,7 +435,6 @@
                 }
             });
             
-            // 쪼개진 파티션(그룹)들을 각각 바닥에 던짐
             partitions.forEach(g => newBoardGroups.push(g));
             boardGroups = newBoardGroups;
 
@@ -409,7 +455,6 @@
             setTimeout(computerTurn, 1000); 
         }
 
-        // 컴퓨터 AI도 다중 그룹 파티셔닝 및 30점 룰 적용
         function getPossibleComGroups() {
             let foundGroups = []; let rack = [...comRack];
             for(let n=1; n<=13; n++) {
@@ -451,6 +496,7 @@
             isPlayerTurn = true; renderAll(); startTimer();
         }
 
+        // 앱 시작
         initDeck(); dealInitialTiles(); renderAll();
         setTimeout(() => { alert("게임이 시작되었습니다! 카드를 터치하여 선택 후 '내기!'를 누르세요."); startTimer(); }, 500);
 
